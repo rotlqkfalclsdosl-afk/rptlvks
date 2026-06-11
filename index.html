@@ -1,0 +1,828 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>커뮤니티 게시판 & 채팅</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght=400;500;600;700&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+        
+        body {
+            background-color: #111827;
+            color: #f3f4f6;
+            padding: 3.5vw 2.5vw;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 29% 68%;
+            gap: 3%;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            border-bottom: 1px solid #374151;
+            padding-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+        header h1 { font-size: 1.75rem; font-weight: 700; color: #ffffff; }
+        .user-info { display: flex; align-items: center; gap: 12px; font-size: 0.875rem; white-space: nowrap; }
+        .btn-logout { background: #ef4444; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.75rem; }
+        .btn-logout:hover { background: #dc2626; }
+
+        /* 사이드바 */
+        .sidebar { background: #1f2937; padding: 1.25rem; border-radius: 12px; border: 1px solid #374151; height: fit-content; }
+        .btn-create-secret { width: 100%; background: #a855f7; color: white; border: none; padding: 0.75rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.875rem; margin-bottom: 10px; }
+        .btn-create-secret:hover { background: #9333ea; }
+        
+        .btn-create-chat { width: 100%; background: #3b82f6; color: white; border: none; padding: 0.75rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.875rem; margin-bottom: 15px; }
+        .btn-create-chat:hover { background: #2563eb; }
+
+        .room-list-title { font-size: 0.875rem; font-weight: 600; color: #9ca3af; margin-bottom: 10px; margin-top: 10px; }
+        
+        .room-item { display: flex; justify-content: space-between; align-items: center; padding: 0.625rem; background: #111827; border: 1px solid #374151; border-radius: 6px; margin-bottom: 8px; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; gap: 8px; }
+        .room-item:hover { border-color: #a855f7; background: #1e1b4b; }
+        .room-item.active { border-color: #3b82f6; background: #1e3a8a; }
+        .room-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-grow: 1; pointer-events: none; }
+
+        /* 메인 콘텐츠 */
+        .main-content { display: flex; flex-direction: column; min-width: 0; }
+        .current-board-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 15px; color: #3b82f6; }
+        
+        .write-section { background: #1f2937; padding: 1.5rem; border-radius: 12px; border: 1px solid #374151; margin-bottom: 2rem; }
+        
+        .write-meta-box { display: flex; justify-content: space-between; align-items: center; background: #111827; border: 1px solid #374151; padding: 0.75rem; border-radius: 8px; margin-bottom: 12px; gap: 10px; }
+        .input-static-user { color: #9ca3af; font-size: 0.875rem; font-weight: 600; width: 100%; }
+        .input-anon-author { background: transparent; border: none; color: #fff; font-size: 0.875rem; font-weight: 600; width: 40%; max-width: 150px; outline: none; border-bottom: 1px solid #374151; padding-bottom: 2px; }
+        
+        .anonymous-toggle { display: none; align-items: center; gap: 6px; font-size: 0.813rem; color: #d1d5db; cursor: pointer; user-select: none; white-space: nowrap; }
+        .anonymous-toggle input { cursor: pointer; width: 15px; height: 15px; accent-color: #a855f7; }
+
+        .input-title { width: 100%; background: #111827; border: 1px solid #374151; color: #ffffff; padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 12px; }
+        textarea { width: 100%; height: 120px; background: #111827; border: 1px solid #374151; color: #ffffff; padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; resize: none; margin-bottom: 14px; line-height: 1.6; }
+        .input-title:focus, textarea:focus, .comment-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        
+        .btn-submit { background: #3b82f6; color: #ffffff; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 0.875rem; float: right; }
+        .btn-submit:hover { background: #2563eb; }
+        .clearfix::after { content: ""; clear: both; display: table; }
+
+        .board-section { display: flex; flex-direction: column; gap: 1rem; }
+        .post-card { background: #1f2937; padding: 1.5rem; border-radius: 12px; border: 1px solid #374151; animation: slideUp 0.3s ease-out; }
+        .post-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #374151; gap: 10px; }
+        
+        .post-meta-right { display: flex; align-items: center; gap: 10px; }
+        .post-author { font-weight: 600; font-size: 0.875rem; color: #e5e7eb; word-break: break-all; }
+        .post-author.anon { color: #a855f7; background: rgba(168, 85, 247, 0.15); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+        .post-date { font-size: 0.813rem; color: #9ca3af; white-space: nowrap; }
+        
+        .btn-admin-delete { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 500; transition: all 0.2s; z-index: 10; }
+        .btn-admin-delete:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+        .post-title { font-size: 1.125rem; font-weight: 700; color: #ffffff; margin-bottom: 10px; word-break: break-all; }
+        .post-content { font-size: 0.938rem; color: #d1d5db; white-wrap: pre-wrap; line-height: 1.6; word-break: break-all; }
+        .no-post { text-align: center; color: #6b7280; padding: 50px 0; font-size: 0.875rem; }
+
+        /* 댓글 영역 */
+        .comment-section { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed #374151; }
+        .comment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .comment-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 12px; background: #111827; border-radius: 6px; font-size: 0.875rem; border: 1px solid transparent; }
+        .comment-item:hover { border-color: #374151; }
+        .comment-text-area { display: flex; flex-direction: column; gap: 4px; }
+        .comment-author { font-weight: 600; color: #9ca3af; font-size: 0.813rem; }
+        .comment-text { color: #d1d5db; word-break: break-all; }
+        .comment-input-wrap { display: flex; gap: 8px; }
+        .comment-input { flex-grow: 1; background: #111827; border: 1px solid #374151; color: #ffffff; padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.875rem; }
+        .comment-submit-btn { background: #4b5563; color: white; border: none; padding: 0 1rem; border-radius: 8px; cursor: pointer; font-size: 0.813rem; font-weight: 500; white-space: nowrap; }
+        .comment-submit-btn:hover { background: #6b7280; }
+
+        /* 채팅방 전용 영역 */
+        .chat-section { display: none; flex-direction: column; height: 75vh; }
+        .chat-messages-box { flex-grow: 1; background: #1f2937; border: 1px solid #374151; border-radius: 12px; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 1rem; }
+        .chat-message { display: flex; flex-direction: column; gap: 4px; }
+        .chat-message.me { align-items: flex-end; }
+        .chat-message.others { align-items: flex-start; }
+        .chat-msg-author { font-size: 0.75rem; color: #9ca3af; font-weight: 600; }
+        .chat-msg-bubble { background: #111827; border: 1px solid #374151; padding: 8px 12px; border-radius: 8px; font-size: 0.938rem; color: #e5e7eb; max-width: 80%; word-break: break-all; }
+        .chat-message.me .chat-msg-bubble { background: #3b82f6; border-color: #2563eb; color: #fff; }
+        .chat-input-area { display: flex; gap: 10px; background: #1f2937; padding: 1rem; border-radius: 12px; border: 1px solid #374151; }
+        .chat-input { flex-grow: 1; background: #111827; border: 1px solid #374151; color: #ffffff; padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; }
+        .chat-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+
+        /* 모달 팝업 공통 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 100; padding: 5vw; }
+        .modal-content { background: #1f2937; border: 1px solid #374151; padding: 1.5rem; border-radius: 12px; width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; }
+        .modal-content h3 { font-size: 1rem; color: #fff; text-align: center; margin-bottom: 5px; }
+        .modal-content input { background: #111827; border: 1px solid #374151; color: #fff; padding: 0.688rem; border-radius: 6px; font-size: 0.875rem; }
+        .modal-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 5px; }
+        .modal-btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem; }
+        .modal-btn.confirm { background: #3b82f6; color: #fff; }
+        .modal-btn.cancel { background: #4b5563; color: #fff; }
+
+        .auth-toggle-link { color: #3b82f6; text-align: center; font-size: 0.813rem; cursor: pointer; text-decoration: underline; margin-top: 5px; }
+        .auth-toggle-link:hover { color: #60a5fa; }
+
+        @media (max-width: 768px) {
+            body { padding: 15px 10px; }
+            .container { grid-template-columns: 1fr; gap: 16px; }
+            header { flex-direction: column; align-items: flex-start; gap: 10px; padding-bottom: 1rem; }
+            header h1 { font-size: 1.5rem; }
+            .user-info { width: 100%; justify-content: space-between; }
+            .sidebar { width: 100%; }
+            .write-section { padding: 1rem; margin-bottom: 1.5rem; }
+            .post-card { padding: 1rem; }
+            .post-title { font-size: 1rem; }
+            .post-content { font-size: 0.875rem; }
+            .modal { padding: 16px; }
+            .modal-content { max-width: 100%; }
+            .chat-section { height: 60vh; }
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>커뮤니티 게시판 & 채팅</h1>
+        <div class="user-info" id="globalUserInfo"></div>
+    </header>
+
+    <div class="sidebar">
+        <button class="btn-create-secret" onclick="handleCreateClick('board')">비밀게시판 만들기 🔒</button>
+        <button class="btn-create-chat" onclick="handleCreateClick('chat')">비밀 채팅방 만들기 💬</button>
+        
+        <div class="room-list-title">게시판 목록</div>
+        <div class="room-item active" id="defaultRoomItem" onclick="switchBoard('main')">📢 전체 게시판</div>
+        <div id="roomList"></div>
+
+        <div class="room-list-title">채팅방 목록</div>
+        <div id="chatRoomList"></div>
+    </div>
+
+    <div class="main-content">
+        <div class="current-board-title" id="currentBoardTitle">📢 전체 게시판</div>
+        
+        <!-- 게시판용 섹션 -->
+        <div id="boardContainer">
+            <div class="write-section clearfix">
+                <div class="write-meta-box">
+                    <div id="authorArea" class="input-static-user">
+                        작성자: <input type="text" id="nonAuthAuthor" class="input-anon-author" placeholder="닉네임 입력" maxlength="10">
+                    </div>
+                    <label class="anonymous-toggle" id="anonToggleLabel">
+                        <input type="checkbox" id="anonymousCheckbox" onchange="toggleAnonymousView()">
+                        <span>익명으로 작성</span>
+                    </label>
+                </div>
+                
+                <input type="text" id="title" class="input-title" placeholder="제목을 입력해 주세요." maxlength="40">
+                <textarea id="content" placeholder="내용을 입력해 주세요."></textarea>
+                <button type="button" class="btn-submit" onclick="addPost()">등록</button>
+            </div>
+
+            <div class="board-section" id="postList">
+                <div class="no-post" id="noPostMessage">등록된 게시글이 없습니다.</div>
+            </div>
+        </div>
+
+        <!-- 채팅 전용 섹션 -->
+        <div class="chat-section" id="chatContainer">
+            <div class="chat-messages-box" id="chatMessageList"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInputMsg" class="chat-input" placeholder="메시지를 입력하세요." onkeypress="if(event.key==='Enter') sendChatMessage()">
+                <button type="button" class="btn-submit" onclick="sendChatMessage()">전송</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 통합 로그인 모달 -->
+<div class="modal" id="loginAuthModal">
+    <div class="modal-content" id="authModalTypeLogin">
+        <h3>비밀 공간 로그인</h3>
+        <input type="text" id="loginId" placeholder="아이디">
+        <input type="password" id="loginPw" placeholder="비밀번호">
+        <button class="modal-btn confirm" style="margin-top: 5px;" onclick="handleCustomLogin()">로그인</button>
+        <div class="auth-toggle-link" onclick="toggleAuthForm('register')">계정이 없으신가요? 회원가입</div>
+        <button class="modal-btn cancel" onclick="closeModal('loginAuthModal')">취소</button>
+    </div>
+    <div class="modal-content" id="authModalTypeRegister" style="display: none;">
+        <h3>비밀 공간 회원가입</h3>
+        <input type="text" id="regId" placeholder="사용할 아이디">
+        <input type="password" id="regPw" placeholder="비밀번호 (6자 이상)">
+        <input type="text" id="regNick" placeholder="사용할 고정 닉네임 (최대 10자)" maxlength="10">
+        <button class="modal-btn confirm" style="margin-top: 5px; background: #a855f7;" onclick="handleCustomRegister()">가입 완료 및 로그인</button>
+        <div class="auth-toggle-link" onclick="toggleAuthForm('login')">이미 계정이 있나요? 로그인</div>
+        <button class="modal-btn cancel" onclick="closeModal('loginAuthModal')">취소</button>
+    </div>
+</div>
+
+<!-- 방 생성 모달 -->
+<div class="modal" id="createModal">
+    <div class="modal-content">
+        <h3 id="createModalTitle">새 비밀게시판 생성</h3>
+        <input type="text" id="newRoomTitle" placeholder="제목" maxlength="20">
+        <input type="password" id="newRoomPassword" placeholder="진입 비밀번호" maxlength="15">
+        <div class="modal-buttons">
+            <button class="modal-btn cancel" onclick="closeModal('createModal')">취소</button>
+            <button class="modal-btn confirm" onclick="submitCreateRoom()">생성</button>
+        </div>
+    </div>
+</div>
+
+<!-- 입장 암호 확인 모달 -->
+<div class="modal" id="authModal">
+    <div class="modal-content">
+        <h3>비밀번호 입력</h3>
+        <p style="font-size:0.75rem; color:#9ca3af;" id="authTargetTitle"></p>
+        <input type="password" id="authPasswordInput" placeholder="비밀번호">
+        <div class="modal-buttons">
+            <button class="modal-btn cancel" onclick="closeModal('authModal')">취소</button>
+            <button class="modal-btn confirm" onclick="verifyRoomPassword()">입장</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ADMIN_INPUT_ID = "nathan13@";
+    const ADMIN_INPUT_PW = "nathan13@";
+    const ADMIN_NICKNAME = "관리자";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBQ1Icr5EWcj5zEfYKBbl3B6w1RVap30f4",
+        authDomain: "community-2cfc0.firebaseapp.com",
+        databaseURL: "https://community-2cfc0-default-rtdb.asia-southeast1.firebasedatabase.app", 
+        projectId: "community-2cfc0",
+        storageBucket: "community-2cfc0.firebasestorage.app",
+        messagingSenderId: "582197070057",
+        appId: "1:582197070057:web:ad660d06290be719f90878",
+        measurementId: "G-5NWJBG3TZ4"
+    };
+
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const auth = firebase.auth();
+    
+    let localSessionUser = null; 
+    let currentUser = null;      
+    let currentMode = 'board'; 
+    let currentRoomId = 'main'; 
+    let currentRoomData = null;  
+    let dbListener = null;       
+    let commentsListeners = {};
+    let pendingAction = null;    
+    let creatingRoomType = 'board'; 
+
+    auth.onAuthStateChanged((user) => {
+        const userInfoArea = document.getElementById('globalUserInfo');
+        if (user || localSessionUser) {
+            currentUser = user || localSessionUser;
+            const isAdmin = checkIsAdmin();
+
+            userInfoArea.innerHTML = `<span>👤 ${escapeHtml(currentUser.displayName)}${isAdmin ? ' ⭐' : ''}</span> <button class="btn-logout" onclick="handleLogout()">로그아웃</button>`;
+            
+            if (pendingAction === 'create') {
+                pendingAction = null;
+                openCreateModal(creatingRoomType);
+            } else if (pendingAction === 'entry' && currentRoomData) {
+                pendingAction = null;
+                if (isAdmin || (currentRoomData.creatorUid && currentUser.uid === currentRoomData.creatorUid)) {
+                    executeRoomSwitch(currentRoomData.id, currentRoomData.title, currentRoomData.type);
+                } else {
+                    openPasswordModal();
+                }
+            }
+        } else {
+            currentUser = null;
+            userInfoArea.innerHTML = '';
+            if (currentRoomId !== 'main') switchBoard('main');
+        }
+        updateWriteAreaUI();
+        refreshRoomLists();
+        if (dbListener) {
+            if(currentMode === 'board') loadPosts();
+            else loadChatMessages();
+        }
+    });
+
+    function checkIsAdmin() {
+        if (localSessionUser && localSessionUser.uid === 'nathan_master_admin') return true;
+        if (!currentUser) return false;
+        const userEmail = currentUser.email || "";
+        return userEmail.toLowerCase().includes('nathan13_admin');
+    }
+    
+    function checkIsOwner(uid) {
+        return currentUser && uid && currentUser.uid === uid;
+    }
+
+    function toggleAuthForm(type) {
+        if(type === 'register') {
+            document.getElementById('authModalTypeLogin').style.display = 'none';
+            document.getElementById('authModalTypeRegister').style.display = 'flex';
+        } else {
+            document.getElementById('authModalTypeLogin').style.display = 'flex';
+            document.getElementById('authModalTypeRegister').style.display = 'none';
+        }
+    }
+    
+    function handleCustomRegister() {
+        const id = document.getElementById('regId').value.trim();
+        const pw = document.getElementById('regPw').value;
+        const nick = document.getElementById('regNick').value.trim();
+        if(!id || !pw || !nick) { alert('모든 항목을 입력해 주세요.'); return; }
+        if(pw.length < 6) { alert('비밀번호는 최소 6자 이상이어야 합니다.'); return; }
+        if(id === ADMIN_INPUT_ID) { alert('해당 아이디는 예약된 관리자 계정입니다.'); return; }
+
+        const safeId = id.replace(/[^a-zA-Z0-9]/g, "");
+        auth.createUserWithEmailAndPassword(`${safeId}@internal.com`, pw)
+            .then(res => res.user.updateProfile({ displayName: nick }))
+            .then(() => { alert(`가입 완료! [${nick}]님 환영합니다.`); closeModal('loginAuthModal'); })
+            .catch(err => alert('회원가입 실패: ' + err.message));
+    }
+    
+    function handleCustomLogin() {
+        const id = document.getElementById('loginId').value.trim();
+        const pw = document.getElementById('loginPw').value;
+        if(!id || !pw) { alert('정보를 입력해 주세요.'); return; }
+
+        if(id === ADMIN_INPUT_ID && pw === ADMIN_INPUT_PW) {
+            localSessionUser = {
+                uid: 'nathan_master_admin',
+                displayName: ADMIN_NICKNAME,
+                email: 'nathan13_admin@internal.com'
+            };
+            currentUser = localSessionUser;
+            
+            auth.signInWithEmailAndPassword(localSessionUser.email, pw).catch(() => {
+                auth.createUserWithEmailAndPassword(localSessionUser.email, pw).then(res => {
+                    res.user.updateProfile({ displayName: ADMIN_NICKNAME });
+                }).catch(() => {});
+            });
+
+            closeModal('loginAuthModal');
+            auth.signOut().then(() => {
+                const userInfoArea = document.getElementById('globalUserInfo');
+                userInfoArea.innerHTML = `<span>👤 ${ADMIN_NICKNAME} ⭐</span> <button class="btn-logout" onclick="handleLogout()">로그아웃</button>`;
+                updateWriteAreaUI();
+                refreshRoomLists();
+                if(currentMode === 'board') loadPosts(); else loadChatMessages();
+            });
+            return;
+        }
+
+        const safeId = id.replace(/[^a-zA-Z0-9]/g, "");
+        const targetEmail = `${safeId}@internal.com`;
+
+        auth.signInWithEmailAndPassword(targetEmail, pw)
+            .then(() => { localSessionUser = null; closeModal('loginAuthModal'); })
+            .catch(err => alert('로그인 실패: 아이디 또는 비밀번호를 확인하세요.'));
+    }
+
+    function showAuthModal(actionType) {
+        pendingAction = actionType;
+        toggleAuthForm('login');
+        document.getElementById('loginAuthModal').style.display = 'flex';
+    }
+    
+    function handleLogout() { 
+        localSessionUser = null; 
+        auth.signOut().then(() => {
+            location.reload();
+        }); 
+    }
+
+    function updateWriteAreaUI() {
+        const authorArea = document.getElementById('authorArea');
+        const anonToggleLabel = document.getElementById('anonToggleLabel');
+        const anonCheckbox = document.getElementById('anonymousCheckbox');
+
+        if (currentRoomId === 'main') {
+            authorArea.innerHTML = `작성자: <input type="text" id="nonAuthAuthor" class="input-anon-author" placeholder="닉네임 입력" maxlength="10">`;
+            if (checkIsAdmin()) {
+                authorArea.innerHTML = `작성자: ${ADMIN_NICKNAME} ⭐`;
+            }
+            anonToggleLabel.style.display = 'none';
+        } else {
+            anonToggleLabel.style.display = 'flex';
+            if (currentUser && currentUser.displayName) {
+                if (anonCheckbox.checked) {
+                    authorArea.innerText = `작성자: 익명 👤❌`;
+                    authorArea.style.color = '#a855f7';
+                } else {
+                    authorArea.innerText = `작성자: ${currentUser.displayName}`;
+                    authorArea.style.color = '#9ca3af';
+                }
+            }
+        }
+    }
+    
+    function toggleAnonymousView() { updateWriteAreaUI(); }
+
+    function closeModal(id) { 
+        document.getElementById(id).style.display = 'none'; 
+        document.getElementById('newRoomTitle').value = '';
+        document.getElementById('newRoomPassword').value = '';
+        document.getElementById('authPasswordInput').value = '';
+        if (id === 'loginAuthModal') pendingAction = null;
+    }
+
+    function handleCreateClick(type) {
+        creatingRoomType = type;
+        if (!currentUser || !currentUser.displayName) { showAuthModal('create'); } else { openCreateModal(type); }
+    }
+    function openCreateModal(type) { 
+        document.getElementById('createModalTitle').innerText = type === 'board' ? '새 비밀게시판 생성' : '새 비밀 채팅방 생성';
+        document.getElementById('createModal').style.display = 'flex'; 
+    }
+
+    function submitCreateRoom() {
+        const title = document.getElementById('newRoomTitle').value.trim();
+        const password = document.getElementById('newRoomPassword').value.trim();
+        if(!title || !password) { alert('제목과 비밀번호를 모두 입력해주세요.'); return; }
+
+        const refPath = creatingRoomType === 'board' ? 'rooms' : 'chatRooms';
+        database.ref(refPath).push({
+            title: title,
+            password: password,
+            creatorUid: currentUser.uid, 
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        closeModal('createModal');
+    }
+
+    function refreshRoomLists() {
+        database.ref('rooms').once('value', (snapshot) => {
+            const list = document.getElementById('roomList');
+            list.innerHTML = '';
+            const data = snapshot.val();
+            if(data) { for(let id in data) { renderRoomItem(list, id, data[id], 'board'); } }
+        });
+        database.ref('chatRooms').once('value', (snapshot) => {
+            const list = document.getElementById('chatRoomList');
+            list.innerHTML = '';
+            const data = snapshot.val();
+            if(data) { for(let id in data) { renderRoomItem(list, id, data[id], 'chat'); } }
+        });
+    }
+
+    database.ref('rooms').on('value', () => refreshRoomLists());
+    database.ref('chatRooms').on('value', () => refreshRoomLists());
+
+    function renderRoomItem(container, id, room, type) {
+        const item = document.createElement('div');
+        const isActive = (currentRoomId === id && currentMode === type);
+        item.className = `room-item ${isActive ? 'active' : ''}`;
+        item.id = `room-${id}`;
+        
+        item.onclick = function() { tryEntryRoom(id, room, type); };
+        
+        let deleteBtnHtml = '';
+        if (checkIsAdmin() || checkIsOwner(room.creatorUid)) {
+            deleteBtnHtml = `<button class="btn-admin-delete" onclick="deleteRoom(event, '${id}', '${type}')">삭제</button>`;
+        }
+
+        const icon = type === 'board' ? '🔒' : '💬';
+        item.innerHTML = `<span>${icon} ${escapeHtml(room.title)}</span>${deleteBtnHtml}`;
+        container.appendChild(item);
+    }
+
+    function deleteRoom(event, roomId, type) {
+        event.stopPropagation(); 
+        if (!confirm("해당 공간과 내부의 모든 데이터가 영구 삭제됩니다. 진행하시겠습니까?")) return;
+        
+        const refPath = type === 'board' ? 'rooms' : 'chatRooms';
+        const dataPath = type === 'board' ? 'posts' : 'chatMessages';
+
+        database.ref(`${refPath}/${roomId}`).remove()
+            .then(() => database.ref(`${dataPath}/${roomId}`).remove())
+            .then(() => {
+                alert("삭제되었습니다.");
+                if (currentRoomId === roomId) switchBoard('main');
+            })
+            .catch(err => alert("삭제 실패: " + err.message));
+    }
+
+    function tryEntryRoom(id, room, type) {
+        if (currentRoomId === id && currentMode === type) return;
+        currentRoomData = { id: id, password: room.password, title: room.title, creatorUid: room.creatorUid, type: type };
+        
+        if (!currentUser || !currentUser.displayName) {
+            showAuthModal('entry');
+        } else {
+            if (checkIsAdmin() || (currentRoomData.creatorUid && currentUser.uid === currentRoomData.creatorUid)) {
+                executeRoomSwitch(currentRoomData.id, currentRoomData.title, type);
+            } else {
+                openPasswordModal();
+            }
+        }
+    }
+    function openPasswordModal() {
+        if (currentRoomData) {
+            document.getElementById('authTargetTitle').innerText = `[${currentRoomData.title}]에 입장합니다.`;
+            document.getElementById('authModal').style.display = 'flex';
+        }
+    }
+    function verifyRoomPassword() {
+        const inputPw = document.getElementById('authPasswordInput').value;
+        if(inputPw === currentRoomData.password) {
+            closeModal('authModal');
+            executeRoomSwitch(currentRoomData.id, currentRoomData.title, currentRoomData.type);
+        } else {
+            alert('비밀번호가 일치하지 않습니다.');
+        }
+    }
+
+    function switchBoard(boardId) { executeRoomSwitch(boardId, '전체 게시판', 'board'); }
+
+    function executeRoomSwitch(roomId, title, type) {
+        currentRoomId = roomId;
+        currentMode = type;
+        
+        document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
+        
+        const uiTitle = document.getElementById('currentBoardTitle');
+        const boardCtn = document.getElementById('boardContainer');
+        const chatCtn = document.getElementById('chatContainer');
+
+        if(roomId === 'main') {
+            const defItem = document.getElementById('defaultRoomItem');
+            if(defItem) defItem.classList.add('active');
+            uiTitle.innerHTML = `📢 전체 게시판`;
+            boardCtn.style.display = 'block';
+            chatCtn.style.display = 'none';
+        } else {
+            const activeEl = document.getElementById(`room-${roomId}`);
+            if(activeEl) activeEl.classList.add('active');
+            
+            if(type === 'board') {
+                uiTitle.innerHTML = `🔒 ${escapeHtml(title)} (비밀게시판)`;
+                boardCtn.style.display = 'block';
+                chatCtn.style.display = 'none';
+            } else {
+                uiTitle.innerHTML = `💬 ${escapeHtml(title)} (비밀 채팅방)`;
+                boardCtn.style.display = 'none';
+                chatCtn.style.display = 'flex';
+            }
+        }
+        
+        document.getElementById('anonymousCheckbox').checked = false;
+        updateWriteAreaUI();
+        
+        if(dbListener) dbListener.off();
+        for(let key in commentsListeners) { commentsListeners[key].off(); }
+        commentsListeners = {};
+
+        if(type === 'board') loadPosts();
+        else loadChatMessages();
+    }
+
+    /* --- ⚡ [렉 해결 고속 최적화] 게시글 렌더링 로직 --- */
+    function loadPosts() {
+        const postList = document.getElementById('postList');
+        postList.innerHTML = '<div class="no-post">로딩 중...</div>';
+        
+        dbListener = database.ref(`posts/${currentRoomId}`).orderByChild('createdAt');
+        dbListener.on('value', (snapshot) => {
+            // DocumentFragment를 사용하여 로컬 환경 메모리 병목 렉 차단
+            const fragment = document.createDocumentFragment();
+            const data = snapshot.val();
+            
+            if (!data) {
+                postList.innerHTML = '<div class="no-post">등록된 게시글이 없습니다. 첫 게시글을 작성해 보세요.</div>';
+                return;
+            }
+            
+            const postsArray = [];
+            for (let id in data) { postsArray.push({ id: id, ...data[id] }); }
+            postsArray.reverse();
+
+            postsArray.forEach(post => {
+                const postCard = document.createElement('div');
+                postCard.className = 'post-card';
+                
+                const isAnonPost = post.author === '익명';
+                const authorClass = isAnonPost ? 'post-author anon' : 'post-author';
+
+                let postDeleteBtnHtml = '';
+                if (checkIsAdmin() || checkIsOwner(post.uid)) {
+                    postDeleteBtnHtml = `<button class="btn-admin-delete" onclick="deletePost('${post.id}')">삭제</button>`;
+                }
+
+                postCard.innerHTML = `
+                    <div class="post-header">
+                        <span class="${authorClass}">${escapeHtml(post.author)}</span>
+                        <div class="post-meta-right">
+                            <span class="post-date">${post.timestamp}</span>
+                            ${postDeleteBtnHtml}
+                        </div>
+                    </div>
+                    <div class="post-title">${escapeHtml(post.title)}</div>
+                    <div class="post-content">${escapeHtml(post.content)}</div>
+                    
+                    <div class="comment-section">
+                        <div class="comment-list" id="comment-list-${post.id}"></div>
+                        <div class="comment-input-wrap">
+                            <input type="text" id="comment-input-${post.id}" class="comment-input" placeholder="댓글 달기..." onkeypress="if(event.key==='Enter') addComment('${post.id}')">
+                            <button class="comment-submit-btn" onclick="addComment('${post.id}')">작성</button>
+                        </div>
+                    </div>
+                `;
+                fragment.appendChild(postCard);
+            });
+            
+            postList.innerHTML = '';
+            postList.appendChild(fragment);
+            
+            // 화면 렌더링 직후 메모리 체인을 끊고 리스너 바인딩 순차 실행
+            postsArray.forEach(post => {
+                loadComments(post.id);
+            });
+        });
+    }
+
+    function addPost() {
+        const titleInput = document.getElementById('title');
+        const contentInput = document.getElementById('content');
+        let finalAuthor = "";
+        let postUid = null;
+
+        if (currentRoomId === 'main') {
+            const nonAuthInput = document.getElementById('nonAuthAuthor');
+            if(currentUser && checkIsAdmin()) {
+                finalAuthor = ADMIN_NICKNAME;
+                postUid = currentUser.uid;
+            } else {
+                if (!nonAuthInput.value.trim()) { alert('작성자 닉네임을 입력해 주세요.'); return; }
+                finalAuthor = nonAuthInput.value.trim();
+                if(currentUser) postUid = currentUser.uid;
+            }
+        } else {
+            if (!currentUser || !currentUser.displayName) { alert('세션이 만료되었습니다. 다시 로그인해 주세요.'); return; }
+            const anonCheckbox = document.getElementById('anonymousCheckbox');
+            finalAuthor = anonCheckbox.checked ? '익명' : currentUser.displayName;
+            postUid = currentUser.uid;
+        }
+
+        if (!titleInput.value.trim() || !contentInput.value.trim()) { alert('모든 항목을 입력해 주세요.'); return; }
+
+        const now = new Date();
+        const timeString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')} : ${now.getMinutes().toString().padStart(2, '0')}`;
+
+        database.ref(`posts/${currentRoomId}`).push({
+            author: finalAuthor,
+            uid: postUid, 
+            title: titleInput.value,
+            content: contentInput.value,
+            timestamp: timeString,
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        titleInput.value = ''; contentInput.value = '';
+        document.getElementById('anonymousCheckbox').checked = false;
+        updateWriteAreaUI();
+    }
+
+    function deletePost(postId) {
+        if (!confirm("게시글과 포함된 댓글이 모두 삭제됩니다. 진행하시겠습니까?")) return;
+        database.ref(`posts/${currentRoomId}/${postId}`).remove()
+            .then(() => database.ref(`comments/${currentRoomId}/${postId}`).remove())
+            .then(() => alert("삭제되었습니다."))
+            .catch(err => alert("삭제 실패: " + err.message));
+    }
+
+    /* --- ⚡ [렉 해결 고속 최적화] 댓글 렌더링 로직 --- */
+    function loadComments(postId) {
+        const listDiv = document.getElementById(`comment-list-${postId}`);
+        if(!listDiv) return;
+        if(commentsListeners[postId]) commentsListeners[postId].off();
+        
+        commentsListeners[postId] = database.ref(`comments/${currentRoomId}/${postId}`).orderByChild('createdAt');
+        commentsListeners[postId].on('value', snap => {
+            const data = snap.val();
+            let htmlBuffer = '';
+            
+            if(data) {
+                for(let cid in data) {
+                    const c = data[cid];
+                    let cDelBtn = '';
+                    
+                    if (checkIsAdmin() || checkIsOwner(c.uid)) {
+                        cDelBtn = `<button class="btn-admin-delete" style="padding: 2px 5px; font-size: 0.65rem;" onclick="deleteComment('${postId}', '${cid}')">삭제</button>`;
+                    }
+                    
+                    htmlBuffer += `
+                        <div class="comment-item">
+                            <div class="comment-text-area">
+                                <span class="comment-author">${escapeHtml(c.author)}</span>
+                                <span class="comment-text">${escapeHtml(c.text)}</span>
+                            </div>
+                            ${cDelBtn}
+                        </div>
+                    `;
+                }
+            }
+            listDiv.innerHTML = htmlBuffer;
+        });
+    }
+
+    function addComment(postId) {
+        const input = document.getElementById(`comment-input-${postId}`);
+        const text = input.value.trim();
+        if(!text) return;
+
+        let cAuthor = "익명";
+        let cUid = null;
+        if (currentUser) {
+            cAuthor = currentUser.displayName;
+            cUid = currentUser.uid;
+        } else if (currentRoomId === 'main') {
+            const nonAuth = document.getElementById('nonAuthAuthor').value.trim();
+            if(nonAuth) cAuthor = nonAuth;
+        }
+
+        database.ref(`comments/${currentRoomId}/${postId}`).push({
+            author: cAuthor,
+            uid: cUid,
+            text: text,
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        input.value = '';
+    }
+
+    function deleteComment(postId, commentId) {
+        database.ref(`comments/${currentRoomId}/${postId}/${commentId}`).remove();
+    }
+
+    /* --- ⚡ [렉 해결 고속 최적화] 채팅 렌더링 로직 --- */
+    function loadChatMessages() {
+        const chatBox = document.getElementById('chatMessageList');
+        chatBox.innerHTML = '';
+        
+        dbListener = database.ref(`chatMessages/${currentRoomId}`).orderByChild('createdAt');
+        dbListener.on('value', (snapshot) => {
+            const data = snapshot.val();
+            let htmlBuffer = '';
+            
+            if(data) {
+                for (let id in data) {
+                    const msg = data[id];
+                    const isMe = currentUser && currentUser.uid === msg.uid;
+                    const alignClass = isMe ? 'me' : 'others';
+                    
+                    htmlBuffer += `
+                        <div class="chat-message ${alignClass}">
+                            <span class="chat-msg-author">${escapeHtml(msg.author)}</span>
+                            <div class="chat-msg-bubble">${escapeHtml(msg.text)}</div>
+                        </div>
+                    `;
+                }
+                chatBox.innerHTML = htmlBuffer;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        });
+    }
+
+    function sendChatMessage() {
+        const input = document.getElementById('chatInputMsg');
+        const text = input.value.trim();
+        if(!text) return;
+        if (!currentUser || !currentUser.displayName) { alert('채팅을 작성하려면 로그인해야 합니다.'); return; }
+
+        database.ref(`chatMessages/${currentRoomId}`).push({
+            author: currentUser.displayName,
+            uid: currentUser.uid,
+            text: text,
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        input.value = '';
+    }
+
+    function escapeHtml(text) {
+        if(!text) return '';
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+</script>
+</body>
+</html>
+
+```
