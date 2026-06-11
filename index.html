@@ -91,11 +91,18 @@
         .btn-admin-delete:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
 
         .post-title { font-size: 1.125rem; font-weight: 700; color: #ffffff; margin-bottom: 10px; word-break: break-all; }
-        .post-content { font-size: 0.938rem; color: #d1d5db; white-wrap: pre-wrap; line-height: 1.6; word-break: break-all; }
+        .post-content { font-size: 0.938rem; color: #d1d5db; white-space: pre-wrap; line-height: 1.6; word-break: break-all; margin-bottom: 1.25rem; }
         .no-post { text-align: center; color: #6b7280; padding: 50px 0; font-size: 0.875rem; }
 
+        /* 👍 👎 추천/비추천 버튼 스타일 */
+        .post-reaction-bar { display: flex; gap: 10px; margin-bottom: 1rem; }
+        .btn-reaction { background: #111827; border: 1px solid #374151; color: #9ca3af; padding: 6px 12px; border-radius: 6px; font-size: 0.813rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+        .btn-reaction:hover { border-color: #4b5563; color: #e5e7eb; }
+        .btn-reaction.like-active { border-color: #10b981; color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .btn-reaction.dislike-active { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
         /* 댓글 영역 */
-        .comment-section { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed #374151; }
+        .comment-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #374151; }
         .comment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         .comment-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 12px; background: #111827; border-radius: 6px; font-size: 0.875rem; border: 1px solid transparent; }
         .comment-item:hover { border-color: #374151; }
@@ -152,7 +159,6 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -180,7 +186,6 @@
     <div class="main-content">
         <div class="current-board-title" id="currentBoardTitle">📢 전체 게시판</div>
         
-        <!-- 게시판용 섹션 -->
         <div id="boardContainer">
             <div class="write-section clearfix">
                 <div class="write-meta-box">
@@ -203,7 +208,6 @@
             </div>
         </div>
 
-        <!-- 채팅 전용 섹션 -->
         <div class="chat-section" id="chatContainer">
             <div class="chat-messages-box" id="chatMessageList"></div>
             <div class="chat-input-area">
@@ -214,7 +218,6 @@
     </div>
 </div>
 
-<!-- 통합 로그인 모달 -->
 <div class="modal" id="loginAuthModal">
     <div class="modal-content" id="authModalTypeLogin">
         <h3>비밀 공간 로그인</h3>
@@ -235,7 +238,6 @@
     </div>
 </div>
 
-<!-- 방 생성 모달 -->
 <div class="modal" id="createModal">
     <div class="modal-content">
         <h3 id="createModalTitle">새 비밀게시판 생성</h3>
@@ -248,7 +250,6 @@
     </div>
 </div>
 
-<!-- 입장 암호 확인 모달 -->
 <div class="modal" id="authModal">
     <div class="modal-content">
         <h3>비밀번호 입력</h3>
@@ -595,14 +596,13 @@
         else loadChatMessages();
     }
 
-    /* --- ⚡ [렉 해결 고속 최적화] 게시글 렌더링 로직 --- */
+    /* --- ⚡ [최적화 완료] 게시글 및 추천/비추천 렌더링 --- */
     function loadPosts() {
         const postList = document.getElementById('postList');
         postList.innerHTML = '<div class="no-post">로딩 중...</div>';
         
         dbListener = database.ref(`posts/${currentRoomId}`).orderByChild('createdAt');
         dbListener.on('value', (snapshot) => {
-            // DocumentFragment를 사용하여 로컬 환경 메모리 병목 렉 차단
             const fragment = document.createDocumentFragment();
             const data = snapshot.val();
             
@@ -627,6 +627,16 @@
                     postDeleteBtnHtml = `<button class="btn-admin-delete" onclick="deletePost('${post.id}')">삭제</button>`;
                 }
 
+                // 추천/비추천 카운트 계산 및 로그인 유저 활성화 여부 바인딩
+                const likesCount = post.likes ? Object.keys(post.likes).length : 0;
+                const dislikesCount = post.dislikes ? Object.keys(post.dislikes).length : 0;
+                
+                let myUid = currentUser ? currentUser.uid : (document.getElementById('nonAuthAuthor') ? 'guest_' + document.getElementById('nonAuthAuthor').value.trim() : 'guest');
+                if (localSessionUser) myUid = localSessionUser.uid;
+
+                const hasLiked = post.likes && post.likes[myUid] === true;
+                const hasDisliked = post.dislikes && post.dislikes[myUid] === true;
+
                 postCard.innerHTML = `
                     <div class="post-header">
                         <span class="${authorClass}">${escapeHtml(post.author)}</span>
@@ -638,6 +648,15 @@
                     <div class="post-title">${escapeHtml(post.title)}</div>
                     <div class="post-content">${escapeHtml(post.content)}</div>
                     
+                    <div class="post-reaction-bar">
+                        <button class="btn-reaction ${hasLiked ? 'like-active' : ''}" onclick="handleReaction('${post.id}', 'likes')">
+                            👍 <span>${likesCount}</span>
+                        </button>
+                        <button class="btn-reaction ${hasDisliked ? 'dislike-active' : ''}" onclick="handleReaction('${post.id}', 'dislikes')">
+                            👎 <span>${dislikesCount}</span>
+                        </button>
+                    </div>
+
                     <div class="comment-section">
                         <div class="comment-list" id="comment-list-${post.id}"></div>
                         <div class="comment-input-wrap">
@@ -652,10 +671,49 @@
             postList.innerHTML = '';
             postList.appendChild(fragment);
             
-            // 화면 렌더링 직후 메모리 체인을 끊고 리스너 바인딩 순차 실행
             postsArray.forEach(post => {
                 loadComments(post.id);
             });
+        });
+    }
+
+    /* --- ⚡ 추천 / 비추천 데이터 토글 핸들러 --- */
+    function handleReaction(postId, type) {
+        let myUid = currentUser ? currentUser.uid : null;
+        if (localSessionUser) myUid = localSessionUser.uid;
+        
+        // 전체게시판 비로그인 유저인 경우 임시 식별값 발급
+        if (!myUid && currentRoomId === 'main') {
+            const guestNick = document.getElementById('nonAuthAuthor').value.trim();
+            if(!guestNick) { alert('추천/비추천을 하려면 오른쪽 위에서 로그인을 하거나 작성자 닉네임을 먼저 입력해 주세요.'); return; }
+            myUid = 'guest_' + guestNick;
+        }
+
+        if (!myUid) { alert('로그인이 필요한 기능입니다.'); return; }
+
+        const oppositeType = type === 'likes' ? 'dislikes' : 'likes';
+        const postRef = database.ref(`posts/${currentRoomId}/${postId}`);
+
+        postRef.once('value', (snapshot) => {
+            const post = snapshot.val();
+            if (!post) return;
+
+            const currentStatus = post[type] && post[type][myUid];
+            const oppositeStatus = post[oppositeType] && post[oppositeType][myUid];
+
+            const updates = {};
+            // 내가 이미 누른 상태라면 -> 취소 처리
+            if (currentStatus) {
+                updates[`${type}/${myUid}`] = null;
+            } else {
+                // 새로 누르는 경우 -> 활성화 처리 및 반대 버튼은 자동 취소
+                updates[`${type}/${myUid}`] = true;
+                if (oppositeStatus) {
+                    updates[`${oppositeType}/${myUid}`] = null;
+                }
+            }
+
+            postRef.update(updates);
         });
     }
 
@@ -685,7 +743,7 @@
         if (!titleInput.value.trim() || !contentInput.value.trim()) { alert('모든 항목을 입력해 주세요.'); return; }
 
         const now = new Date();
-        const timeString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')} : ${now.getMinutes().toString().padStart(2, '0')}`;
+        const timeString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
         database.ref(`posts/${currentRoomId}`).push({
             author: finalAuthor,
@@ -693,7 +751,9 @@
             title: titleInput.value,
             content: contentInput.value,
             timestamp: timeString,
-            createdAt: firebase.database.ServerValue.TIMESTAMP
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            likes: {},
+            dislikes: {}
         });
 
         titleInput.value = ''; contentInput.value = '';
@@ -709,7 +769,6 @@
             .catch(err => alert("삭제 실패: " + err.message));
     }
 
-    /* --- ⚡ [렉 해결 고속 최적화] 댓글 렌더링 로직 --- */
     function loadComments(postId) {
         const listDiv = document.getElementById(`comment-list-${postId}`);
         if(!listDiv) return;
@@ -772,7 +831,6 @@
         database.ref(`comments/${currentRoomId}/${postId}/${commentId}`).remove();
     }
 
-    /* --- ⚡ [렉 해결 고속 최적화] 채팅 렌더링 로직 --- */
     function loadChatMessages() {
         const chatBox = document.getElementById('chatMessageList');
         chatBox.innerHTML = '';
@@ -824,5 +882,3 @@
 </script>
 </body>
 </html>
-
-```
